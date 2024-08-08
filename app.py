@@ -14,19 +14,19 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Tuya device setup
 DEVICES = {
     'Half Court A': {
-        'id': 'bf3a3ff7f0c70f8701jobw',
+        'id': '',
         'ip': 'Auto',  
-        'key': "`b6E@}9^7p<F}9(]"  
+        'key': ""  
     },
     'Half Court B': {
-        'id': 'bfff0ed1cf8c979d8b5utr',
+        'id': '',
         'ip': 'Auto',  
-        'key': "9pwqgEJ8jd}23njd"  
+        'key': ""  
     },
     'Full Court': {
-        'id': 'bff40a9463aaa2085aaxjf',
+        'id': '',
         'ip': 'Auto',
-        'key': "!#!!/E~scf<GD^*D"
+        'key': ""
     }
 }
 
