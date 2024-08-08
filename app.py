@@ -175,9 +175,9 @@ def daily_routine():
         return
 
     # Email credentials
-    username = 'lolchublighting@homecourt.lk'
-    password = 'Smartlights123!'
-    imap_server = 'mail.homecourt.lk'
+    username = ''
+    password = ''
+    imap_server = ''
 
     try:
         mail = connect_to_email(username, password, imap_server)
