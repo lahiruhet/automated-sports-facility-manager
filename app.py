@@ -8,9 +8,7 @@ import tinytuya
 import schedule
 from collections import defaultdict
 
-
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
 
 DEVICES = {
     'Half Court A': {
@@ -47,28 +45,35 @@ def setup_tuya_devices():
             logging.error(f"Error setting up device for {court}: {e}")
     return devices
 
-def control_light(devices, courts_to_control, state):
+def control_light(devices, half_a_on, half_b_on, full_on):
     try:
-        for court in courts_to_control:
-            if state:
-                devices[court].turn_on()
-                logging.info(f"{court} light turned on at {datetime.now().strftime('%H:%M:%S')}")
-            else:
-                devices[court].turn_off()
-                logging.info(f"{court} light turned off at {datetime.now().strftime('%H:%M:%S')}")
-        
-        # Always control Full Court light
-        if state or 'Full Court' in courts_to_control:
+        # Control Full Court light
+        if full_on:
             devices['Full Court'].turn_on()
-            logging.info(f"Full Court light turned on at {datetime.now().strftime('%H:%M:%S')}")
-        elif not state and 'Full Court' not in courts_to_control:
-            # Check if any other court is still in use
-            other_courts_status = [devices[c].status()['dps']['1'] for c in ['Half Court A', 'Half Court B'] if c not in courts_to_control]
-            if not any(other_courts_status):
-                devices['Full Court'].turn_off()
-                logging.info(f"Full Court light turned off at {datetime.now().strftime('%H:%M:%S')}")
-            else:
-                logging.info(f"Full Court light remains on as other courts are still in use")
+            logging.info("Full Court light turned on")
+        else:
+            devices['Full Court'].turn_off()
+            logging.info("Full Court light turned off")
+
+        # Control Half Court A light
+        if half_a_on:
+            devices['Half Court A'].turn_on()
+            logging.info("Half Court A light turned on")
+            devices['Full Court'].turn_on()
+            logging.info("Full Court light turned on")
+        else:
+            devices['Half Court A'].turn_off()
+            logging.info("Half Court A light turned off")
+
+        # Control Half Court B light
+        if half_b_on:
+            devices['Half Court B'].turn_on()
+            logging.info("Half Court B light turned on")
+            devices['Full Court'].turn_on()
+            logging.info("Full Court light turned on")
+        else:
+            devices['Half Court B'].turn_off()
+            logging.info("Half Court B light turned off")
     except Exception as e:
         logging.error(f"Error controlling lights: {e}")
 
@@ -115,39 +120,50 @@ def extract_reservation_info(email_message):
                     if payment_status.lower() != 'recurring':
                         reservations[time_24hr].append(court)
     
+    # reservations = {'05:30': ['Half Court B'], '06:30': ['Half Court B', 'Half Court A'], '18:30': ['Half Court A'], '19:30': ['Full Court'], '20:30': ['Half Court B', 'Half Court A'], '21:30': ['Full Court']}
     return reservations
 
 def control_lights(devices, reservations):
-    current_time = datetime.now()
+    off_start_time = datetime.now().replace(hour=7, minute=30, second=0, microsecond=0)
+    off_end_time = datetime.now().replace(hour=17, minute=30, second=0, microsecond=0)
+
     for reservation_time, courts in reservations.items():
-        reservation_datetime = datetime.strptime(reservation_time, "%H:%M").replace(year=current_time.year, month=current_time.month, day=current_time.day)
-        
-        if reservation_datetime > current_time:
-            wait_time = (reservation_datetime - current_time).total_seconds()
+        reservation_datetime = datetime.strptime(reservation_time, "%H:%M").replace(year=datetime.now().year, month=datetime.now().month, day=datetime.now().day)
+
+        if off_start_time <= datetime.now() < off_end_time:
+            logging.info("Current time is within the off period (07:30 - 17:30). Turning off all lights.")
+            control_light(devices, False, False, False)
+            
+            # Wait until the off period ends
+            wait_time = (off_end_time - datetime.now()).total_seconds()
+            time.sleep(wait_time)
+            logging.info(f"Off period ended. Resuming reservation processing.")
+
+        if reservation_datetime > datetime.now():
+            control_light(devices, False, False, False)
+            wait_time = (reservation_datetime - datetime.now()).total_seconds()
             logging.info(f"Waiting for {wait_time} seconds until next reservation at {reservation_time}")
             time.sleep(wait_time)
-            
-            courts_to_control = set(courts)
-            if 'Full Court' in courts_to_control:
-                courts_to_control = {'Half Court A', 'Half Court B', 'Full Court'}
-            
-            control_light(devices, courts_to_control, True)
-            logging.info(f"Reservation started at {reservation_time} for {', '.join(courts_to_control)}")
-            
-            # Keep the lights on for 1 hour
-            time.sleep(3600)
-            
-            # Check if there's another reservation immediately after
-            next_reservation_time = (reservation_datetime + timedelta(hours=1)).strftime("%H:%M")
-            if next_reservation_time not in reservations:
-                control_light(devices, courts_to_control, False)
-                logging.info(f"No immediate follow-up reservation. Lights turned off at {next_reservation_time}")
-            else:
-                logging.info(f"Another reservation follows at {next_reservation_time}. Keeping lights on.")
-        
-        current_time = datetime.now()  # Update current time for next iteration
-    
+
+        # Determine which lights should be on for this reservation
+        half_a_on = 'Half Court A' in courts or 'Full Court' in courts
+        half_b_on = 'Half Court B' in courts or 'Full Court' in courts
+        full_on = 'Full Court' in courts
+
+        # Control the lights based on the current reservation needs
+        control_light(devices, half_a_on, half_b_on, full_on)
+
+        logging.info(f"Reservation started at {reservation_time} for {', '.join(courts)}")
+
+        end_time = reservation_datetime + timedelta(minutes=75 if reservation_datetime.strftime("%H:%M") == "21:30" else 60)
+
+        # Wait until the end of the current reservation
+        while datetime.now() < end_time:
+            time.sleep(60)
+
     logging.info("All reservations for today have been processed")
+    # Turn off all lights after processing all reservations
+    control_light(devices, False, False, False)
 
 def daily_routine():
     logging.info("Starting daily routine")
@@ -179,8 +195,7 @@ def main():
     # Run the daily routine immediately when the script starts
     daily_routine()
     
-    # Schedule the daily routine to run at 6:10 AM
-    schedule.every().day.at("05:10").do(daily_routine)
+    schedule.every().day.at("05:20").do(daily_routine)
 
     while True:
         schedule.run_pending()
