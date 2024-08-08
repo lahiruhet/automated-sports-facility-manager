@@ -8,23 +8,25 @@ import tinytuya
 import schedule
 from collections import defaultdict
 
+# Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Tuya device setup
 DEVICES = {
     'Half Court A': {
-        'id': '',
-        'ip': 'Auto',
-        'key': ""
+        'id': 'bf3a3ff7f0c70f8701jobw',
+        'ip': 'Auto',  
+        'key': "`b6E@}9^7p<F}9(]"  
     },
     'Half Court B': {
-        'id': '',
-        'ip': 'Auto',
-        'key': ""
+        'id': 'bfff0ed1cf8c979d8b5utr',
+        'ip': 'Auto',  
+        'key': "9pwqgEJ8jd}23njd"  
     },
     'Full Court': {
-        'id': '',
+        'id': 'bff40a9463aaa2085aaxjf',
         'ip': 'Auto',
-        'key': ""
+        'key': "!#!!/E~scf<GD^*D"
     }
 }
 
@@ -173,9 +175,9 @@ def daily_routine():
         return
 
     # Email credentials
-    username = ''
-    password = ''
-    imap_server = ''
+    username = 'lolchublighting@homecourt.lk'
+    password = 'Smartlights123!'
+    imap_server = 'mail.homecourt.lk'
 
     try:
         mail = connect_to_email(username, password, imap_server)
